@@ -1,4 +1,11 @@
 #!/usr/bin/env python2
+import argparse
+import json
+import os
+import sys
+
+import server.FileService as FileService
+import utils.StrUtils as StrUtils
 
 
 def commandline_parser():
@@ -10,7 +17,12 @@ def commandline_parser():
         argparse.ArgumentParser
     """
 
-    pass
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-f', '--folder', default=os.path.join(os.getcwd(), 'data'),
+        help="working directory (default: 'data' folder)")
+
+    return parser
 
 
 def command_change_dir():
@@ -20,7 +32,8 @@ def command_change_dir():
         RuntimeError: if directory does not exist and autocreate is False.
     """
 
-    pass
+    new_path = raw_input('Input new working directory path: ')
+    return FileService.change_dir(new_path)
 
 
 def command_get_files():
@@ -34,7 +47,7 @@ def command_get_files():
         - size (int): size of file in bytes.
     """
 
-    pass
+    return FileService.get_files()
 
 
 def command_get_file_data():
@@ -53,7 +66,8 @@ def command_get_file_data():
         ValueError: if filename is invalid.
     """
 
-    pass
+    filename = raw_input('Input filename: ')
+    return FileService.get_file_data(filename)
 
 
 def command_create_file():
@@ -70,7 +84,9 @@ def command_create_file():
         ValueError: if filename is invalid.
     """
 
-    pass
+    filename = raw_input('Input filename: ')
+    content = raw_input('Input content: ')
+    return FileService.create_file(filename, content)
 
 
 def command_delete_file():
@@ -80,7 +96,24 @@ def command_delete_file():
         RuntimeError: if file does not exist.
     """
 
-    pass
+    filename = raw_input('Input filename: ')
+    return FileService.delete_file(filename)
+
+
+def command_help():
+    print("""Commands:
+help  : show this help
+chdir : change working directory
+list  : get list of files
+create: create a file with content
+get   : get a file data
+delete: delete a file
+exit  : exit from app
+""")
+
+
+def command_exit():
+    sys.exit(0)
 
 
 def main():
@@ -92,8 +125,41 @@ def main():
     -f --folder - working directory (absolute or relative path, default: current app folder).
     -h --help - help.
     """
+    parser = commandline_parser()
+    params = parser.parse_args()
+    path = params.folder
+    FileService.change_dir(path)
 
-    pass
+    functions = {
+        'help': command_help,
+        'chdir': command_change_dir,
+        'list': command_get_files,
+        'create': command_create_file,
+        'get': command_get_file_data,
+        'delete': command_delete_file,
+        'exit': command_exit,
+    }
+
+    command_help()
+    while True:
+        try:
+            command = raw_input('Input command: ')
+
+            def cmd_unknown():
+                print("Unknown command: {}".format(command))
+
+            result = functions.get(command, cmd_unknown)()
+
+            print(json.dumps({
+                'status': 'success',
+                'result': result,
+            }, indent=2, sort_keys=True, default=StrUtils.json_serialize_helper))
+
+        except Exception as err:
+            print(json.dumps({
+                'status': 'error',
+                'result': str(err),
+            }, indent=2, sort_keys=True, default=StrUtils.json_serialize_helper))
 
 
 if __name__ == '__main__':

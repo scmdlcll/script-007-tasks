@@ -1,3 +1,9 @@
+import os
+import re
+import shutil
+
+import utils.TimeUtils as TimeUtils
+
 
 def change_dir(path, autocreate=True):
     """Change current directory of app.
@@ -10,7 +16,12 @@ def change_dir(path, autocreate=True):
         RuntimeError: if directory does not exist and autocreate is False.
     """
 
-    pass
+    if not os.path.exists(path):
+        if autocreate:
+            os.makedirs(path)
+        else:
+            raise RuntimeError('Directory {} is not found'.format(path))
+    os.chdir(path)
 
 
 def get_files():
@@ -24,7 +35,55 @@ def get_files():
         - size (int): size of file in bytes.
     """
 
-    pass
+    path = os.getcwd()
+
+    # get list of files in `path`
+    files = []
+    for root, dirnames, filenames in os.walk(path):
+        for filename in filenames:
+            files.append(os.path.join(root, filename))
+
+    # collect information about each file
+    data = []
+    prefix_size = len(path) + 1
+    for full_filename in files:
+        filename = full_filename[prefix_size:]
+        data.append({
+            'name': filename,
+            'create_date': TimeUtils.floattime_to_datatime(os.path.getctime(full_filename)),
+            'edit_date': TimeUtils.floattime_to_datatime(os.path.getmtime(full_filename)),
+            'size': os.path.getsize(full_filename),
+        })
+
+    return data
+
+
+def _filename_to_local_path(filename, folder_autocreate=False):
+    """Get local path for filename.
+
+    Args:
+        filename (str): Filename
+        folder_autocreate (bool): Create a subfolder if True
+
+    Returns:
+        (str) Local path.
+
+    Raises:
+        ValueError: if filename is invalid.
+    """
+
+    # security check
+    if re.search(r'(^|[\\/])\.\.($|[\\/])', filename):
+        raise ValueError('Incorrect value of filename: {}'.format(filename))
+
+    path = os.getcwd()
+    full_filename = os.path.join(path, filename)
+
+    folder = os.path.dirname(full_filename)
+    if folder_autocreate:
+        os.makedirs(folder)
+
+    return full_filename
 
 
 def get_file_data(filename):
@@ -46,7 +105,18 @@ def get_file_data(filename):
         ValueError: if filename is invalid.
     """
 
-    pass
+    local_file = _filename_to_local_path(filename)
+    if not os.path.exists(local_file):
+        raise RuntimeError('File {} does not exist'.format(filename))
+
+    with open(local_file, 'rb') as file_handler:
+        return {
+            'name': filename,
+            'create_date': TimeUtils.floattime_to_datatime(os.path.getctime(local_file)),
+            'edit_date': TimeUtils.floattime_to_datatime(os.path.getmtime(local_file)),
+            'size': os.path.getsize(local_file),
+            'context': file_handler.read(),
+        }
 
 
 def create_file(filename, content=None):
@@ -67,7 +137,22 @@ def create_file(filename, content=None):
         ValueError: if filename is invalid.
     """
 
-    pass
+    local_file = _filename_to_local_path(filename)
+
+    if os.path.exists(local_file):
+        print('WARNING: file {} exists'.format(local_file))
+
+    with open(local_file, 'wb') as file_handler:
+        if content:
+            data = bytes(content)
+            file_handler.write(data)
+
+    return {
+        'name': filename,
+        'create_date': TimeUtils.floattime_to_datatime(os.path.getctime(local_file)),
+        'size': os.path.getsize(local_file),
+        'content': content,
+    }
 
 
 def delete_file(filename):
@@ -81,4 +166,11 @@ def delete_file(filename):
         ValueError: if filename is invalid.
     """
 
-    pass
+    local_file = _filename_to_local_path(filename)
+    if not os.path.exists(local_file):
+        raise RuntimeError('File {} does not exist'.format(filename))
+
+    if os.path.isdir(local_file):
+        shutil.rmtree(local_file)
+    else:
+        os.remove(local_file)

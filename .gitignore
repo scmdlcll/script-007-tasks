@@ -6,3 +6,6 @@ __pycache__/
 # virtual environment
 .venv*/
 venv*/
+
+# default data folder
+/data/
