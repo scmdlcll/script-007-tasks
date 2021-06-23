@@ -1,3 +1,5 @@
+import os
+
 
 def change_dir(path, autocreate=True):
     """Change current directory of app.
@@ -10,10 +12,19 @@ def change_dir(path, autocreate=True):
         RuntimeError: if directory does not exist and autocreate is False.
     """
 
-    pass
+    if autocreate and not os.path.exists(path):
+        os.makedirs(path)
+
+    if not os.path.exists(path):
+        raise RuntimeError("The directory {} does not exist".format(path))
+
+    try:
+        os.chdir(path)
+    except RuntimeError as e:
+        print("Error: " + str(e))
 
 
-def get_files():
+def get_files(path):
     """Get info about all files in working directory.
 
     Returns:
@@ -24,7 +35,15 @@ def get_files():
         - size (int): size of file in bytes.
     """
 
-    pass
+    # change_dir(path, autocreate=False)
+    # os.listdir(path='.')
+    files_info = []
+    _, _, files = next(os.walk(path))
+
+    for one_file in files:
+        files_info.append(get_file_data(one_file))
+
+    return files_info
 
 
 def get_file_data(filename):
@@ -45,8 +64,15 @@ def get_file_data(filename):
         RuntimeError: if file does not exist.
         ValueError: if filename is invalid.
     """
+    with open(filename) as f:
+        file_content = f.read()
+    info_dict = {'name': filename,
+                 'content': file_content,
+                 'create_date': os.path.getctime(filename),
+                 'edit_date': os.path.getmtime(filename),
+                 'size': os.path.getsize(filename)}
 
-    pass
+    return info_dict
 
 
 def create_file(filename, content=None):
@@ -67,7 +93,8 @@ def create_file(filename, content=None):
         ValueError: if filename is invalid.
     """
 
-    pass
+    with open(filename, "w") as f:
+        f.write(content)
 
 
 def delete_file(filename):
@@ -81,4 +108,8 @@ def delete_file(filename):
         ValueError: if filename is invalid.
     """
 
-    pass
+    try:
+        os.path.isfile(filename)
+    except RuntimeError:
+        print("{} does not exists or not a file".format(filename))
+    os.remove(filename)
